@@ -212,13 +212,13 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
     // Check if its a POST request
     // Calling Middleware Dummy for Basic Authentication
-    //if forward := middlewareDummy(w, req), forward == false {
+    //if forward := middlewareDummy(w, req), !forward {
     //    return
     //}
-    //forward := middlewareDummy(w, req)
-    //if !forward {
-    //    return
-    //}
+    forward := middlewareDummy(w, req)
+    if !forward {
+        return
+    }
 
     //router.printRequest(w, req)
     //proxy, ok := router.proxies[req.TLS.ServerName]
