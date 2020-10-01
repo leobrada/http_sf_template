@@ -11,6 +11,7 @@ import (
     "log"
     "crypto/x509"
     env "github.com/leobrada/http_sf/env"
+    "github.com/leobrada/http_sf/middleware"
 )
 
 type Router struct {
@@ -128,6 +129,7 @@ func (router *Router) printRequest(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("Reponse: %s\n", "TBD")
 }
 // END TESTING
+
 func middlewareDummy(w http.ResponseWriter, req *http.Request) (bool){
     var username, password string
     form := `<html>
@@ -215,7 +217,11 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     //if forward := middlewareDummy(w, req), !forward {
     //    return
     //}
-    forward := middlewareDummy(w, req)
+    
+    mw_BathicAuth := middleware.NewMiddleware()
+    forward := mw_BathicAuth.MiddlewareDummy(w, req)
+    
+    // forward := middlewareDummy(w, req)
     if !forward {
         return
     }
@@ -236,4 +242,3 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func (router *Router) ListenAndServeTLS() error {
     return router.frontend.ListenAndServeTLS("","")
 }
-
