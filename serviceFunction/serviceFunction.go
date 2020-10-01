@@ -13,27 +13,27 @@ Router ==> (req, resp.writer) ==> Middleware ==> retrieve userinfo from req; que
                                                  ok or not ok    <==
 */
 
-package middleware
+package serviceFunction
 
 import (
   "fmt"
   "net/http"
 )
 
-type MiddlewareIF interface {
-  MiddlewareDummy(w http.ResponseWriter, req *http.Request) (bool)
+type ServiceFunction interface {
+  ApplyFunction(w http.ResponseWriter, req *http.Request) (bool)
 }
 
-type Middleware struct {
-    mw_name string
+type ServiceFunctionName struct {
+    name string
     // TODO: dst_pdp string, // indicates where the pdp is located
 }
 
-func NewMiddleware() *Middleware {
-    return &Middleware{mw_name: "BathicAuth"}
+func NewServiceFunction(name string) *ServiceFunctionName {
+    return &ServiceFunctionName{name: name}
 }
 
-func (mw *Middleware) MiddlewareDummy(w http.ResponseWriter, req *http.Request) bool {
+func (mw *ServiceFunctionName) ApplyFunction(w http.ResponseWriter, req *http.Request) bool {
   var username, password string
   form := `<html>
       <body>
@@ -108,15 +108,3 @@ func (mw *Middleware) MiddlewareDummy(w http.ResponseWriter, req *http.Request) 
   }
   return true
 }
-
-// func (mw *Middleware) (req *http.Request) (error){
-    
-// }
-
-// func (mw *Middleware) Evaluate(req *http.Request) (error){
-    
-// }
-
-// func (mw *Middleware) ServeHTTP(req *http.Request) (error, bool){
-    // // TODO: implement
-// }
