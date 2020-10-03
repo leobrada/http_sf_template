@@ -133,14 +133,8 @@ func (router *Router) printRequest(w http.ResponseWriter, req *http.Request) {
 func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("Serving Request for %s\n", req.TLS.ServerName)
     // ONLY FOR TESTING
-    // router.printRequest(w, req)
+    router.printRequest(w, req)
     // END TESTING
-
-    // Check if its a POST request
-    // Calling Middleware Dummy for Basic Authentication
-    //if forward := middlewareDummy(w, req), !forward {
-    //    return
-    //}
     
     BasicAuth := serviceFunction.NewServiceFunction("BasicAuth")
     forward := BasicAuth.ApplyFunction(w, req)
@@ -156,7 +150,9 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     //}
     //proxy.ServeHTTP(w, req)
     //10.5.0.53
-    nginx_service_url, _ := url.Parse("https://10.5.0.53/")
+    dst := req.Header.Get("sf1")
+    req.Header.Del("sf1")
+    nginx_service_url, _ := url.Parse(dst)
     router.proxy = httputil.NewSingleHostReverseProxy(nginx_service_url)
     router.proxy.ServeHTTP(w, req)
 }
