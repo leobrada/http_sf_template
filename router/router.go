@@ -10,7 +10,8 @@ import (
     "io/ioutil"
     "log"
     "crypto/x509"
-    env "github.com/leobrada/http_sf/env"
+    
+    "github.com/leobrada/http_sf/env"
     "github.com/leobrada/http_sf/serviceFunction"
 )
 
@@ -18,43 +19,24 @@ type Router struct {
     tls_config *tls.Config
     frontend *http.Server
 
-    // Middle that processes the packets before forwarded to the proxy
-    // TODO: Middleware
-    //mws []*middleware.Middleware
-
-    // Proxy used to assign new proxies to whenever a new request must behandled
+    // Proxy used to assign new proxies to whenever a new request must be handled
     proxy *httputil.ReverseProxy
 }
 
 func NewRouter() (*Router, error) {
-    // Load SF Cert that is shown to other SFc and/or Services and/or PEP
-    data_plane_sf_cert, err := tls.LoadX509KeyPair(env.DATA_PLANE_SF_CERT, env.DATA_PLANE_SF_PRIVKEY)
-
     // Load the CA's root certificate that i used to sign the certs shown to the SF by other SFs and/or Services
     // TODO: use loadCertPool() function from http_sf.go --> make new cert module for it that is providing x509 helper functions
-    CA_root_crt, err := ioutil.ReadFile(env.DATA_PLANE_CA_ROOT_CERT)
+
+    ca_root_cert_pool, _ := LoadCertPool(
+         env.DATA_PLANE_CA_ROOT_CERT,
+    )
+    // Load SF Cert that is shown to other SFc and/or Services and/or PEP
+    data_plane_sf_cert, err := tls.LoadX509KeyPair(env.DATA_PLANE_SF_CERT, env.DATA_PLANE_SF_PRIVKEY)
     if err != nil {
         log.Print("ReadFile: ", err)
         return nil, err
     }
-
-    nginx_crt, err := ioutil.ReadFile(env.DATA_PLANE_NGINX_CERT)
-    if err != nil {
-        log.Print("ReadFile: ", err)
-        return nil, err
-    }
-
-    pep_crt, err := ioutil.ReadFile(env.DATA_PLANE_PEP_CERT)
-    if err != nil {
-        log.Print("ReadFile: ", err)
-        return nil, err
-    }
-
-    ca_root_cert_pool := x509.NewCertPool()
-    ca_root_cert_pool.AppendCertsFromPEM(CA_root_crt)
-    ca_root_cert_pool.AppendCertsFromPEM(nginx_crt)
-    ca_root_cert_pool.AppendCertsFromPEM(pep_crt)
-
+    
     router := new(Router)
 
     router.tls_config = &tls.Config{
@@ -63,13 +45,9 @@ func NewRouter() (*Router, error) {
         MinVersion: tls.VersionTLS13,
         MaxVersion: tls.VersionTLS13,
         SessionTicketsDisabled: true,
-        Certificates: nil,
+        Certificates: []tls.Certificate{data_plane_sf_cert},
         ClientAuth: tls.RequireAndVerifyClientCert,
         ClientCAs: ca_root_cert_pool,
-        GetCertificate: func(cli *tls.ClientHelloInfo) (*tls.Certificate, error) {
-                            // TODO: Can SNI extension contain an IP addr?
-                            return &data_plane_sf_cert, nil
-                        },
     }
 
     router.frontend = &http.Server {
@@ -132,6 +110,7 @@ func (router *Router) printRequest(w http.ResponseWriter, req *http.Request) {
 
 func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("Serving Request for %s\n", req.TLS.ServerName)
+       
     // ONLY FOR TESTING
     // router.printRequest(w, req)
     // END TESTING
@@ -142,8 +121,14 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     //    return
     //}
     
-    BasicAuth := serviceFunction.NewServiceFunction("BasicAuth")
-    forward := BasicAuth.ApplyFunction(w, req)
+    // BasicAuthSF := serviceFunction.NewServiceFunction("BasicAuth")
+    // forward := BasicAuthSF.ApplyFunction(serviceFunction.BasicAuth, w, req)
+    // if !forward {
+        // return
+    // }
+    
+    OneTimePassAuthSF := serviceFunction.NewServiceFunction("OneTimePassAuth")
+    forward := OneTimePassAuthSF.ApplyFunction(serviceFunction.OneTimePassAuth, w, req)
     if !forward {
         return
     }
@@ -156,11 +141,24 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     //}
     //proxy.ServeHTTP(w, req)
     //10.5.0.53
-    nginx_service_url, _ := url.Parse("https://10.5.0.53/")
+    nginx_service_url, _ := url.Parse("https://10.80.12.2/")
     router.proxy = httputil.NewSingleHostReverseProxy(nginx_service_url)
     router.proxy.ServeHTTP(w, req)
 }
 
 func (router *Router) ListenAndServeTLS() error {
     return router.frontend.ListenAndServeTLS("","")
+}
+
+func LoadCertPool(cert_paths ...string) (cert_pool *x509.CertPool, err error)  {
+    cert_pool = x509.NewCertPool()
+    for _, cert_path := range cert_paths {
+        cert_pem, err := ioutil.ReadFile(cert_path)
+        if err != nil {
+            log.Print("Read Cert PEM: ", err)
+            return cert_pool, err
+        }
+        cert_pool.AppendCertsFromPEM(cert_pem)
+    }
+    return cert_pool, nil
 }
