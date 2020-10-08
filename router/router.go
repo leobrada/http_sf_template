@@ -10,8 +10,8 @@ import (
     "io/ioutil"
     "log"
     "crypto/x509"
-    env "github.com/leobrada/http_sf/env"
-    "github.com/leobrada/http_sf/serviceFunction"
+    env "github.com/leobrada/http_sf_template/env"
+    serviceFunction "github.com/leobrada/http_sf_template/serviceFunction"
 )
 
 type Router struct {
