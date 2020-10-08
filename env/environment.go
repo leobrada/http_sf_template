@@ -16,10 +16,6 @@ var (
     // concatenated PEM file with certs accepted from SF
     DATA_PLANE_ACCEPTED_CERTS string
 
-    //DATA_PLANE_PEP_CERT string
-    //DATA_PLANE_CA_ROOT_CERT string
-    //DATA_PLANE_NGINX_CERT string
-
     ROUTER_LISTEN_ADDR string
 )
 
