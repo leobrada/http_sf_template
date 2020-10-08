@@ -9,11 +9,16 @@ import (
 
 var (
     // TODO: make it dynamic not hard coded
+    // SFs own certificate
     DATA_PLANE_SF_PRIVKEY string
     DATA_PLANE_SF_CERT string
-    DATA_PLANE_PEP_CERT string
-    DATA_PLANE_CA_ROOT_CERT string
-    DATA_PLANE_NGINX_CERT string
+
+    // concatenated PEM file with certs accepted from SF
+    DATA_PLANE_ACCEPTED_CERTS string
+
+    //DATA_PLANE_PEP_CERT string
+    //DATA_PLANE_CA_ROOT_CERT string
+    //DATA_PLANE_NGINX_CERT string
 
     ROUTER_LISTEN_ADDR string
 )
@@ -28,7 +33,7 @@ func GetCertAndKeyByEnvName(key_path, cert_path string) (pkey, cert string, err 
     return
 }
 
-func GetDataCertByEnvName(cert_path string) (cert string, err error) {
+func GetCertByEnvName(cert_path string) (cert string, err error) {
     if cert, err = LoadEnv(cert_path); err != nil {
         return
     }

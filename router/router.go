@@ -32,28 +32,36 @@ func NewRouter() (*Router, error) {
 
     // Load the CA's root certificate that i used to sign the certs shown to the SF by other SFs and/or Services
     // TODO: use loadCertPool() function from http_sf.go --> make new cert module for it that is providing x509 helper functions
-    CA_root_crt, err := ioutil.ReadFile(env.DATA_PLANE_CA_ROOT_CERT)
+    //CA_root_crt, err := ioutil.ReadFile(env.DATA_PLANE_CA_ROOT_CERT)
+    //if err != nil {
+    //    log.Print("ReadFile: ", err)
+    //    return nil, err
+    //}
+
+    //nginx_crt, err := ioutil.ReadFile(env.DATA_PLANE_NGINX_CERT)
+    //if err != nil {
+    //    log.Print("ReadFile: ", err)
+    //    return nil, err
+    //}
+
+    //pep_crt, err := ioutil.ReadFile(env.DATA_PLANE_PEP_CERT)
+    //if err != nil {
+    //    log.Print("ReadFile: ", err)
+    //    return nil, err
+    //}
+
+    //ca_root_cert_pool := x509.NewCertPool()
+    //ca_root_cert_pool.AppendCertsFromPEM(CA_root_crt)
+    //ca_root_cert_pool.AppendCertsFromPEM(nginx_crt)
+    //ca_root_cert_pool.AppendCertsFromPEM(pep_crt)
+
+    accepted_certs, err := ioutil.ReadFile(env.DATA_PLANE_ACCEPTED_CERTS)
     if err != nil {
         log.Print("ReadFile: ", err)
         return nil, err
     }
-
-    nginx_crt, err := ioutil.ReadFile(env.DATA_PLANE_NGINX_CERT)
-    if err != nil {
-        log.Print("ReadFile: ", err)
-        return nil, err
-    }
-
-    pep_crt, err := ioutil.ReadFile(env.DATA_PLANE_PEP_CERT)
-    if err != nil {
-        log.Print("ReadFile: ", err)
-        return nil, err
-    }
-
-    ca_root_cert_pool := x509.NewCertPool()
-    ca_root_cert_pool.AppendCertsFromPEM(CA_root_crt)
-    ca_root_cert_pool.AppendCertsFromPEM(nginx_crt)
-    ca_root_cert_pool.AppendCertsFromPEM(pep_crt)
+    accepted_certs_pool := x509.NewCertPool()
+    accepted_certs_pool.AppendCertsFromPEM(accepted_certs)
 
     router := new(Router)
 
@@ -65,7 +73,7 @@ func NewRouter() (*Router, error) {
         SessionTicketsDisabled: true,
         Certificates: nil,
         ClientAuth: tls.RequireAndVerifyClientCert,
-        ClientCAs: ca_root_cert_pool,
+        ClientCAs: accepted_certs_pool,
         GetCertificate: func(cli *tls.ClientHelloInfo) (*tls.Certificate, error) {
                             // TODO: Can SNI extension contain an IP addr?
                             return &data_plane_sf_cert, nil
