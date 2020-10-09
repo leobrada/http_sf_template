@@ -11,50 +11,24 @@ import (
     "log"
     "crypto/x509"
     env "github.com/leobrada/http_sf_template/env"
-    serviceFunction "github.com/leobrada/http_sf_template/serviceFunction"
+    service_function "github.com/leobrada/http_sf_template/service_function"
 )
 
 type Router struct {
     tls_config *tls.Config
     frontend *http.Server
 
-    // Middle that processes the packets before forwarded to the proxy
-    // TODO: Middleware
-    //mws []*middleware.Middleware
+    sf service_function.ServiceFunction
 
-    // Proxy used to assign new proxies to whenever a new request must behandled
+    // Proxy variable used to assign new proxies to whenever a new request must behandled
     proxy *httputil.ReverseProxy
 }
 
-func NewRouter() (*Router, error) {
+func NewRouter(_sf service_function.ServiceFunction) (*Router, error) {
     // Load SF Cert that is shown to other SFc and/or Services and/or PEP
     data_plane_sf_cert, err := tls.LoadX509KeyPair(env.DATA_PLANE_SF_CERT, env.DATA_PLANE_SF_PRIVKEY)
 
     // Load the CA's root certificate that i used to sign the certs shown to the SF by other SFs and/or Services
-    // TODO: use loadCertPool() function from http_sf.go --> make new cert module for it that is providing x509 helper functions
-    //CA_root_crt, err := ioutil.ReadFile(env.DATA_PLANE_CA_ROOT_CERT)
-    //if err != nil {
-    //    log.Print("ReadFile: ", err)
-    //    return nil, err
-    //}
-
-    //nginx_crt, err := ioutil.ReadFile(env.DATA_PLANE_NGINX_CERT)
-    //if err != nil {
-    //    log.Print("ReadFile: ", err)
-    //    return nil, err
-    //}
-
-    //pep_crt, err := ioutil.ReadFile(env.DATA_PLANE_PEP_CERT)
-    //if err != nil {
-    //    log.Print("ReadFile: ", err)
-    //    return nil, err
-    //}
-
-    //ca_root_cert_pool := x509.NewCertPool()
-    //ca_root_cert_pool.AppendCertsFromPEM(CA_root_crt)
-    //ca_root_cert_pool.AppendCertsFromPEM(nginx_crt)
-    //ca_root_cert_pool.AppendCertsFromPEM(pep_crt)
-
     accepted_certs, err := ioutil.ReadFile(env.DATA_PLANE_ACCEPTED_CERTS)
     if err != nil {
         log.Print("ReadFile: ", err)
@@ -87,11 +61,12 @@ func NewRouter() (*Router, error) {
         WriteTimeout: time.Second *5,
     }
 
+    router.sf = _sf
+
     return router, nil
 }
 
 // Printing request details
-// ONLY FOR TESTING
 func (router *Router) printRequest(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("Method: %s\n", req.Method)
     fmt.Printf("URL: %s\n", req.URL)
@@ -136,28 +111,15 @@ func (router *Router) printRequest(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("Cancel: %s\n", "TBD")
     fmt.Printf("Reponse: %s\n", "TBD")
 }
-// END TESTING
 
 func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("Serving Request for %s\n", req.TLS.ServerName)
-    // ONLY FOR TESTING
-    router.printRequest(w, req)
-    // END TESTING
-    
-    BasicAuth := serviceFunction.NewServiceFunction("BasicAuth")
-    forward := BasicAuth.ApplyFunction(w, req)
+
+    forward := router.sf.ApplyFunction(w, req)
     if !forward {
         return
     }
 
-    //router.printRequest(w, req)
-    //proxy, ok := router.proxies[req.TLS.ServerName]
-    //if !ok {
-    //    w.WriteHeader(503)
-    //    return
-    //}
-    //proxy.ServeHTTP(w, req)
-    //10.5.0.53
     dst := req.Header.Get("sf1")
     req.Header.Del("sf1")
     nginx_service_url, _ := url.Parse(dst)
