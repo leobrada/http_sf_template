@@ -8,17 +8,16 @@ type ServiceFunction interface {
   ApplyFunction(w http.ResponseWriter, req *http.Request) (forward bool)
 }
 
-/* Very simplistic example
-type ServiceFunctionName struct {
+// Very simplistic example
+type ServiceFunctionDummy struct {
     name string
-    // TODO: dst_pdp string, // indicates where the pdp is located
 }
 
-func NewServiceFunction(name string) *ServiceFunctionName {
-    return &ServiceFunctionName{name: name}
+func NewServiceFunction(name string) ServiceFunctionDummy {
+    return ServiceFunctionDummy{name: name}
 }
 
-func (mw *ServiceFunctionName) ApplyFunction(w http.ResponseWriter, req *http.Request) bool {
-    return true
+func (mw ServiceFunctionDummy) ApplyFunction(w http.ResponseWriter, req *http.Request) (forward bool) {
+    forward = true
+    return forward
 }
-*/

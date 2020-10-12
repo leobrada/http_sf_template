@@ -3,18 +3,18 @@ package router
 import (
     "net/url"
     "crypto/tls"
+    "crypto/x509"
     "net/http"
     "net/http/httputil"
     "time"
     "fmt"
-    "io/ioutil"
-    "log"
-    "crypto/x509"
     env "github.com/leobrada/http_sf_template/env"
     service_function "github.com/leobrada/http_sf_template/service_function"
 )
 
 type Router struct {
+    data_plane_sf_cert tls.Certificate
+    accepted_certs_pool *x509.CertPool
     tls_config *tls.Config
     frontend *http.Server
 
@@ -24,20 +24,15 @@ type Router struct {
     proxy *httputil.ReverseProxy
 }
 
-func NewRouter(_sf service_function.ServiceFunction) (*Router, error) {
-    // Load SF Cert that is shown to other SFc and/or Services and/or PEP
-    data_plane_sf_cert, err := tls.LoadX509KeyPair(env.DATA_PLANE_SF_CERT, env.DATA_PLANE_SF_PRIVKEY)
-
-    // Load the CA's root certificate that i used to sign the certs shown to the SF by other SFs and/or Services
-    accepted_certs, err := ioutil.ReadFile(env.DATA_PLANE_ACCEPTED_CERTS)
-    if err != nil {
-        log.Print("ReadFile: ", err)
-        return nil, err
-    }
-    accepted_certs_pool := x509.NewCertPool()
-    accepted_certs_pool.AppendCertsFromPEM(accepted_certs)
+func NewRouter(_data_plane_sf_cert tls.Certificate, _accepted_certs_pem []byte,
+    _sf service_function.ServiceFunction) (*Router, error) {
 
     router := new(Router)
+
+    router.data_plane_sf_cert = _data_plane_sf_cert
+
+    router.accepted_certs_pool = x509.NewCertPool()
+    router.accepted_certs_pool.AppendCertsFromPEM(_accepted_certs_pem)
 
     router.tls_config = &tls.Config{
         Rand: nil,
@@ -47,10 +42,10 @@ func NewRouter(_sf service_function.ServiceFunction) (*Router, error) {
         SessionTicketsDisabled: true,
         Certificates: nil,
         ClientAuth: tls.RequireAndVerifyClientCert,
-        ClientCAs: accepted_certs_pool,
+        ClientCAs: router.accepted_certs_pool,
         GetCertificate: func(cli *tls.ClientHelloInfo) (*tls.Certificate, error) {
                             // TODO: Can SNI extension contain an IP addr?
-                            return &data_plane_sf_cert, nil
+                            return &router.data_plane_sf_cert, nil
                         },
     }
 
@@ -62,6 +57,15 @@ func NewRouter(_sf service_function.ServiceFunction) (*Router, error) {
     }
 
     router.sf = _sf
+
+    // When the router is acting as a client; this defines his behavior
+    // TODO: make an own Transporter for the Router
+    http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config {
+        Certificates:       []tls.Certificate{router.data_plane_sf_cert},
+        InsecureSkipVerify: true,
+        ClientAuth: tls.RequireAndVerifyClientCert,
+        ClientCAs: router.accepted_certs_pool,
+    }
 
     return router, nil
 }
