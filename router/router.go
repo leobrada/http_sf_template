@@ -118,6 +118,7 @@ func (router *Router) printRequest(w http.ResponseWriter, req *http.Request) {
 
 func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("Serving Request for %s\n", req.TLS.ServerName)
+    router.printRequest(w, req)
 
     forward := router.sf.ApplyFunction(w, req)
     if !forward {
