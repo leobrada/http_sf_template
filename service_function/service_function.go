@@ -13,8 +13,8 @@ type ServiceFunctionDummy struct {
     name string
 }
 
-func NewServiceFunction(name string) ServiceFunctionDummy {
-    return ServiceFunctionDummy{name: name}
+func NewServiceFunction() ServiceFunctionDummy {
+    return ServiceFunctionDummy{name: "dummy"}
 }
 
 func (mw ServiceFunctionDummy) ApplyFunction(w http.ResponseWriter, req *http.Request) (forward bool) {

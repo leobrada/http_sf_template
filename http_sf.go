@@ -43,7 +43,7 @@ func main() {
         log.Panicf("%v\n", err)
     }
     // 3: Create Zero Trust Service Funtion
-    sf_dummy := service_function.NewServiceFunction("dummy")
+    sf_dummy := service_function.NewServiceFunction()
     router, err := router.NewRouter(data_plane_sf_cert, accepted_certs_pem, sf_dummy)
     if err != nil {
         log.Panicf("%v\n", err)
