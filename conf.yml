@@ -1,9 +1,0 @@
-listen_port: ":443"
-functions:
-  - dns: sf1.zt.uni-ulm.de
-    ip: 10.80.0.10
-    http_header: "sf1"
-    crt: /home/ubuntu/cert/sf1/sf1.crt
-    key: /home/ubuntu/cert/sf1/sf1.key
-    accepted:
-      - /home/ubuntu/cert/sf1/ca.crt

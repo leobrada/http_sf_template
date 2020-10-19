@@ -1,0 +1,9 @@
+listen_port: ":443"
+functions:
+  - dns: "sf1.example.com"
+    ip: 192.168.0.2
+    http_header: "sf1"
+    crt: /path/to/certificate.crt
+    key: /path/to/private.key
+    accepted:
+      - /path/to/accepted/ca.crt
