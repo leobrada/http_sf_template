@@ -20,19 +20,18 @@ type Router struct {
 
     sf service_function.ServiceFunction
 
-    // Proxy variable used to assign new proxies to whenever a new request must behandled
+    // Proxy variable used to assign new proxies to whenever a new request must be handled
     proxy *httputil.ReverseProxy
 }
 
-func NewRouter(_data_plane_sf_cert tls.Certificate, _accepted_certs_pem []byte,
-    _sf service_function.ServiceFunction) (*Router, error) {
+func NewRouter(_data_plane_sf_cert  tls.Certificate,
+               _accepted_cert_pool *x509.CertPool,
+               _sf                  service_function.ServiceFunction) (*Router, error) {
 
     router := new(Router)
 
-    router.data_plane_sf_cert = _data_plane_sf_cert
-
-    router.accepted_certs_pool = x509.NewCertPool()
-    router.accepted_certs_pool.AppendCertsFromPEM(_accepted_certs_pem)
+    router.data_plane_sf_cert  = _data_plane_sf_cert
+    router.accepted_certs_pool = _accepted_cert_pool
 
     router.tls_config = &tls.Config{
         Rand: nil,
@@ -50,7 +49,7 @@ func NewRouter(_data_plane_sf_cert tls.Certificate, _accepted_certs_pem []byte,
     }
 
     router.frontend = &http.Server {
-        Addr: env.ROUTER_LISTEN_ADDR,
+        Addr: env.Config.Listen_port,
         TLSConfig: router.tls_config,
         ReadTimeout: time.Second * 5,
         WriteTimeout: time.Second *5,
@@ -66,7 +65,6 @@ func NewRouter(_data_plane_sf_cert tls.Certificate, _accepted_certs_pem []byte,
         ClientAuth: tls.RequireAndVerifyClientCert,
         ClientCAs: router.accepted_certs_pool,
     }
-
     return router, nil
 }
 
@@ -125,8 +123,8 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
         return
     }
 
-    dst := req.Header.Get("sf1")
-    req.Header.Del("sf1")
+    dst := req.Header.Get(env.Config.Functions[0].Http_header)
+    req.Header.Del(env.Config.Functions[0].Http_header)
     nginx_service_url, _ := url.Parse(dst)
     router.proxy = httputil.NewSingleHostReverseProxy(nginx_service_url)
     router.proxy.ServeHTTP(w, req)

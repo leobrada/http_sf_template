@@ -2,6 +2,7 @@ package service_function
 
 import (
   "net/http"
+  "fmt"
 )
 
 type ServiceFunction interface {
@@ -18,6 +19,7 @@ func NewServiceFunction() ServiceFunctionDummy {
 }
 
 func (mw ServiceFunctionDummy) ApplyFunction(w http.ResponseWriter, req *http.Request) (forward bool) {
+    fmt.Printf("\n+++ ApplyFunction +++\nRequest: %v\n\n", req)
     forward = true
     return forward
 }
