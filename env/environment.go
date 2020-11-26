@@ -5,18 +5,20 @@ import (
     "gopkg.in/yaml.v2"
 )
 
-type Function_t struct {
-  Dns           string  `yaml:"dns"`
-  Ip            string  `yaml:"ip"`
-  Crt           string  `yaml:"crt"`
-  Key           string  `yaml:"key"`
-  Accepted    []string  `yaml:"accepted"`
-  Http_header   string  `yaml:"http_header"`
+type Certificates_set_t struct {
+  Cert_shown_by_sf              string `yaml:"cert_shown_by_sf"`
+  Privkey_for_cert_shown_by_sf  string `yaml:"privkey_for_cert_shown_by_sf"`
+  Certs_sf_accepts              string `yaml:"certs_sf_accepts"`
+}
+
+type Sf_t struct {
+  Listen_addr   string              `yaml:"listen_addr"`
+  Server        Certificates_set_t  `yaml:"server"`
+  Client        Certificates_set_t  `yaml:"client"`
 }
 
 type Config_t struct {
-  Functions []Function_t
-  Listen_port  string  `yaml:"listen_port"`
+  Sf Sf_t `yaml:"sf"`
 }
 
 var Config Config_t
