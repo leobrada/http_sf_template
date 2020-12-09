@@ -13,6 +13,8 @@ import (
 
     env "github.com/leobrada/http_sf_template/env"
     service_function "github.com/leobrada/http_sf_template/service_function"
+    
+    "github.com/leobrada/http_sf_template/logwriter"
 )
 
 type Router struct {
@@ -32,11 +34,25 @@ type Router struct {
 
     // Service function to be called for every incoming HTTP request
     sf service_function.ServiceFunction
+    
+    // Logger structs
+    logger *log.Logger
+    logChannel chan []byte
+    logWriter *logwriter.LogWriter
 }
 
 func NewRouter(_sf service_function.ServiceFunction) (*Router, error) {
     router := new(Router)
     router.sf = _sf
+    
+    // Create a logging channel
+    router.logChannel = make(chan []byte, 256)
+    
+    // Create a new log writer
+    router.logWriter = logwriter.NewLogWriter("./access.log", router.logChannel, 5)
+
+    // Run main loop of logWriter
+    go router.logWriter.Work()
 
     // Load all SF certificates to operate both in server and client modes
     router.initAllCertificates(&env.Config)
@@ -57,6 +73,9 @@ func NewRouter(_sf service_function.ServiceFunction) (*Router, error) {
     mux := http.NewServeMux()
     mux.Handle("/", router)
 
+    // Frontend Loggers
+    router.logger = log.New(logwriter.LogWriter{}, "", log.LstdFlags)
+    
     // Create an HTTP server to handle all incoming requests
     router.frontend = &http.Server {
         Addr: env.Config.Sf.Listen_addr,
@@ -64,6 +83,7 @@ func NewRouter(_sf service_function.ServiceFunction) (*Router, error) {
         ReadTimeout: time.Second * 5,
         WriteTimeout: time.Second *5,
         Handler: mux,
+        ErrorLog: router.logger,
     }
     return router, nil
 }
@@ -118,54 +138,56 @@ func NewRouter(_sf service_function.ServiceFunction) (*Router, error) {
     // // // return true
 // // // }
 
-// // // func matchTLSConst(input uint16) string {
-    // // // switch input {
-    // // // // TLS VERSION
-    // // // case 0x0300:
-        // // // return "VersionSSL30"
-    // // // case 0x0301:
-        // // // return "VersionTLS10"
-    // // // case 0x0302:
-        // // // return "VersionTLS11"
-    // // // case 0x0303:
-        // // // return "VersionTLS12"
-    // // // case 0x0304:
-        // // // return "VersionTLS13"
-    // // // // TLS CIPHER SUITES
-    // // // case 0x0005:
-        // // // return "TLS_RSA_WITH_RC4_128_SHA"
-    // // // case 0x000a:
-        // // // return "TLS_RSA_WITH_3DES_EDE_CBC_SHA"
-    // // // case 0x002f:
-        // // // return "TLS_RSA_WITH_AES_128_CBC_SHA"
-    // // // case 0x0035:
-        // // // return "TLS_RSA_WITH_AES_256_CBC_SHA"
-    // // // case 0x003c:
-        // // // return "TLS_RSA_WITH_AES_128_CBC_SHA256"
-    // // // case 0x009c:
-        // // // return "TLS_RSA_WITH_AES_128_GCM_SHA256"
-    // // // case 0x009d:
-        // // // return "TLS_RSA_WITH_AES_256_GCM_SHA384"
-    // // // case 0xc007:
-        // // // return "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA"
-    // // // case 0xc009:
-        // // // return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA"
-    // // // case 0xc00a:
-        // // // return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA"
-    // // // case 0x1301:
-        // // // return "TLS_AES_128_GCM_SHA256"
-    // // // case 0x1302:
-        // // // return "TLS_AES_256_GCM_SHA384"
-    // // // case 0x1303:
-        // // // return "TLS_CHACHA20_POLY1305_SHA256"
-    // // // case 0x5600:
-        // // // return "TLS_FALLBACK_SCSV"
-    // // // default:
-        // // // return "unsupported"
-    // // // }
-// // // }
+func matchTLSConst(input uint16) string {
+    switch input {
+    // TLS VERSION
+    case 0x0300:
+        return "VersionSSL30"
+    case 0x0301:
+        return "VersionTLS10"
+    case 0x0302:
+        return "VersionTLS11"
+    case 0x0303:
+        return "VersionTLS12"
+    case 0x0304:
+        return "VersionTLS13"
+    // TLS CIPHER SUITES
+    case 0x0005:
+        return "TLS_RSA_WITH_RC4_128_SHA"
+    case 0x000a:
+        return "TLS_RSA_WITH_3DES_EDE_CBC_SHA"
+    case 0x002f:
+        return "TLS_RSA_WITH_AES_128_CBC_SHA"
+    case 0x0035:
+        return "TLS_RSA_WITH_AES_256_CBC_SHA"
+    case 0x003c:
+        return "TLS_RSA_WITH_AES_128_CBC_SHA256"
+    case 0x009c:
+        return "TLS_RSA_WITH_AES_128_GCM_SHA256"
+    case 0x009d:
+        return "TLS_RSA_WITH_AES_256_GCM_SHA384"
+    case 0xc007:
+        return "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA"
+    case 0xc009:
+        return "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA"
+    case 0xc00a:
+        return "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA"
+    case 0x1301:
+        return "TLS_AES_128_GCM_SHA256"
+    case 0x1302:
+        return "TLS_AES_256_GCM_SHA384"
+    case 0x1303:
+        return "TLS_CHACHA20_POLY1305_SHA256"
+    case 0x5600:
+        return "TLS_FALLBACK_SCSV"
+    default:
+        return "unsupported"
+    }
+}
 
 func (router *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+    router.LogHTTPRequest(req, 1)
+    
     forward := router.sf.ApplyFunction(w, req)
     if !forward {
         return
@@ -249,4 +271,29 @@ func (router *Router) initAllCertificates(conf *env.Config_t) {
     if isErrorDetected {
         log.Fatal("[Router.initAllCertificates]: An error occurred during loading certificates. See details above.")
     }
+}
+
+func (router *Router) Log(s string) {
+  router.logChannel <- []byte(s)
+}
+
+func (router *Router) LogHTTPRequest(req *http.Request, loglevel int) {
+  // Make a string to log
+  t := time.Now()
+  ts := fmt.Sprintf("%d/%d/%d %02d:%02d:%02d ",
+                     t.Year(),
+                        t.Month(),
+                           t.Day(),
+                              t.Hour(),
+                                   t.Minute(),
+                                         t.Second())
+  s := fmt.Sprintf("%s,%s,%s,%s,%t,%t,%s,success\n",
+                    ts,
+                       req.RemoteAddr,
+                          req.TLS.ServerName,
+                             matchTLSConst(req.TLS.Version),
+                                req.TLS.HandshakeComplete,
+                                   req.TLS.DidResume,
+                                      matchTLSConst(req.TLS.CipherSuite))
+  router.Log(s)
 }
